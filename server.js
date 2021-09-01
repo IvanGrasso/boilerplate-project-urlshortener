@@ -10,9 +10,9 @@ const mongoose = require('mongoose');
 const port = process.env.PORT || 3000;
 
 // Set up database
-mongoose.connect('mongodb+srv://kenyano:bTr0eBXN5V4rMqx2@cluster0.r9bwx.mongodb.net/url_shortener?retryWrites=true&w=majority');
+mongoose.connect(process.env['DB_URI']);
 
-const ShortenedURL = mongoose.model('ShortenedURL', {
+const ShortURL = mongoose.model('ShortURL', {
   id: Number,
   originalURL: String
 });
@@ -35,38 +35,37 @@ app.get('/', function(req, res) {
   res.sendFile(process.cwd() + '/views/index.html');
 });
 
-app.get('/api/shorturl/:id', function (req, res) {
-  ShortenedURL.findOne({ id: req.params.id }, function (err, shortenedURL) {
-    if (err) { return handleError(err) }
-    if (shortenedURL == null) {
-      res.json({
-        error: "No short URL found for the given input"
-      })
-    } else {
-      res.redirect(shortenedURL.originalURL);
-    }
-  });
+app.get('/api/shorturl/:id', async function (req, res) {
+  try {
+   await ShortURL.findOne({ id: req.params.id }).then(shortURL => {
+      if (!shortURL) {
+        throw new Error("No short URL found for the given input");
+      }
+      res.redirect(shortURL.originalURL)
+    })
+  } catch (e) {
+    res.json({ error: e.message })
+  }
 });
 
 app.post('/api/shorturl', (req, res) => {
-  console.log(req.body)
   let url = new URL(req.body.url)
   let domain = url.hostname.replace('www.', '')
   dns.lookup(domain, function(err, addresses) {
     if (err) {
       res.json({ error: "Invalid Hostname" })
     } else if (addresses[0] != undefined) {
-      let count = ShortenedURL.countDocuments({}, function(err, docCount) {
+      let count = ShortURL.countDocuments({}, function(err, docCount) {
         if (err) { return handleError(err) }       
-        const shortenedURL = new ShortenedURL({
+        const shortURL = new ShortURL({
         id: docCount + 1,
         originalURL: req.body.url
       });
-        shortenedURL.save(function(err) {
+        shortURL.save(function(err) {
           if (err) { return handleError(err) }
           res.json({
-            original_url: shortenedURL.originalURL,
-            short_url: shortenedURL.id
+            original_url: shortURL.originalURL,
+            short_url: shortURL.id
           })
         });
       })
