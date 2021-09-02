@@ -43,6 +43,7 @@ app.post('/api/shorturl', async (req, res) => {
   try {
     let shortURL = await ShortURL.findOne({ originalURL: req.body.url})
     if (!shortURL) {
+      validateURLFormat(req.body.url)
       let url = new URL(req.body.url)
       let domain = url.hostname.replace('www.', '')
       await lookupDNS(domain)
@@ -71,6 +72,12 @@ async function lookupDNS(domain) {
       resolve(address);
     });
   });
+}
+
+function validateURLFormat(url) {
+  if (url.match(/^(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,6}(\/\S*)?$/) == null) {
+    throw new Error('Invalid URL')
+  }
 }
 
 app.get('/api/shorturl/:id', async function (req, res) {
